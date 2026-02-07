@@ -93,80 +93,47 @@ This project leverages cutting-edge mobile development technologies and cloud in
 ## Architecture Overview
 
 ```mermaid
-graph TB
-    subgraph "Client Layer"
-        A[React Native App]
-        B[Expo Framework]
-    end
-    
-    subgraph "Services Layer"
-        C[Firebase Auth]
-        D[Firestore Database]
-        E[Firebase Storage]
-        F[Google Maps API]
-        G[MapLibre]
-    end
-    
-    subgraph "Infrastructure Layer"
-        H[AWS Services]
-        I[Docker Containers]
-    end
-    
-    A --> B
-    B --> C
-    B --> D
-    B --> E
-    B --> F
-    B --> G
-    D --> H
+graph TD
+    A[React Native App] --> B[Expo Framework]
+    B --> C[Firebase Auth]
+    B --> D[Firestore Database]
+    B --> E[Firebase Storage]
+    B --> F[Google Maps API]
+    B --> G[MapLibre]
+    D --> H[AWS Services]
     E --> H
-    H --> I
-    
-    style A fill:#61DAFB
-    style B fill:#000020
-    style C fill:#FFCA28
-    style D fill:#FFCA28
-    style E fill:#FFCA28
-    style F fill:#4285F4
-    style G fill:#396CB2
-    style H fill:#FF9900
-    style I fill:#2496ED
+    H --> I[Docker Containers]
 ```
 
 ## System Flow Diagram
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant A as App
-    participant F as Firebase
-    participant M as Maps API
-    participant G as GPS Service
+    participant User
+    participant App
+    participant Firebase
+    participant Maps
+    participant GPS
     
-    U->>A: Open NavigateU
-    A->>F: Authenticate User
-    F-->>A: Auth Token
-    A->>G: Request Location
-    G-->>A: Current Position
-    A->>M: Load Map
-    M-->>A: Map Tiles
+    User->>App: Open NavigateU
+    App->>Firebase: Authenticate User
+    Firebase-->>App: Auth Token
+    App->>GPS: Request Location
+    GPS-->>App: Current Position
+    App->>Maps: Load Map
+    Maps-->>App: Map Tiles
     
-    U->>A: Search Destination
-    A->>M: Request Route
-    M-->>A: Route Data
-    A->>F: Save to History
+    User->>App: Search Destination
+    App->>Maps: Request Route
+    Maps-->>App: Route Data
     
-    U->>A: Start Navigation
+    User->>App: Start Navigation
     loop Real-time Updates
-        G->>A: Position Update
-        A->>M: Check Traffic
-        M-->>A: Traffic Data
-        A->>U: Turn Instructions
+        GPS->>App: Position Update
+        App->>Maps: Check Traffic
+        Maps-->>App: Traffic Data
+        App->>User: Turn Instructions
     end
-    
-    U->>A: Arrive at Destination
-    A->>F: Save Trip Data
-    F-->>A: Sync Complete
 ```
 
 ## Key Features
@@ -382,70 +349,43 @@ The app uses Firebase for:
 ## User Journey Flow
 
 ```mermaid
-graph LR
+graph TD
     A[Download App] --> B[Sign Up/Login]
     B --> C[Grant Permissions]
-    C --> D{First Time User?}
-    D -->|Yes| E[Tutorial/Onboarding]
+    C --> D{First Time?}
+    D -->|Yes| E[Tutorial]
     D -->|No| F[Home Screen]
     E --> F
-    
     F --> G[Search Destination]
     F --> H[View Saved Places]
-    F --> I[Browse Nearby]
-    
-    G --> J[Select Route]
-    H --> J
-    I --> J
-    
-    J --> K[Preview Route]
-    K --> L{Start Navigation?}
-    L -->|Yes| M[Turn-by-Turn Nav]
-    L -->|No| F
-    
-    M --> N[Real-time Updates]
-    N --> O{Arrived?}
-    O -->|No| N
-    O -->|Yes| P[Save Trip]
-    P --> Q[Rate Experience]
-    Q --> F
-    
-    style A fill:#4CAF50
-    style M fill:#2196F3
-    style P fill:#FF9800
-    style Q fill:#9C27B0
+    G --> I[Select Route]
+    H --> I
+    I --> J[Preview Route]
+    J --> K{Start Nav?}
+    K -->|Yes| L[Navigate]
+    K -->|No| F
+    L --> M[Arrive]
+    M --> F
 ```
 
 ## Data Flow Architecture
 
 ```mermaid
-flowchart TD
+graph TD
     A[User Input] --> B{Action Type}
-    
     B -->|Search| C[Search Service]
     B -->|Navigate| D[Navigation Service]
     B -->|Save| E[Storage Service]
-    
     C --> F[Google Places API]
-    F --> G[MapLibre Renderer]
-    
+    F --> G[Map Display]
     D --> H[Google Directions API]
     H --> I[Route Processor]
     I --> J[GPS Tracker]
-    
     E --> K[Firebase Firestore]
     K --> L[Cloud Sync]
-    
-    G --> M[Display Layer]
+    G --> M[User Interface]
     J --> M
     L --> M
-    
-    M --> N[User Interface]
-    
-    style A fill:#E3F2FD
-    style N fill:#E8F5E9
-    style K fill:#FFF3E0
-    style H fill:#F3E5F5
 ```
 
 ## Roadmap
