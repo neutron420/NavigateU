@@ -26,6 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     permissions: [
       "android.permission.ACCESS_COARSE_LOCATION",
       "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.CAMERA",
     ],
   },
   web: {
@@ -35,6 +36,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     "expo-router",
     "@maplibre/maplibre-react-native",
+    [
+      "expo-camera",
+      {
+        cameraPermission: "NavigateU needs camera access for AR navigation.",
+      },
+    ],
     [
       "expo-splash-screen",
       {

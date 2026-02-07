@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import MapLibreGL from "@maplibre/maplibre-react-native";
 import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -9,6 +10,7 @@ import {
   Keyboard,
   Platform,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -16,6 +18,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { getCurrentUser } from "@/services/auth";
+import {
+  addBuildingReview,
+  type BuildingReview,
+  getBuildingAverageRating,
+  getBuildingReviews,
+} from "@/services/reviews";
 
 MapLibreGL.setAccessToken(null);
 
@@ -365,6 +375,18 @@ export default function MapScreen() {
     null,
   );
 
+  // Reviews
+  const [buildingReviews, setBuildingReviews] = useState<BuildingReview[]>([]);
+  const [buildingRating, setBuildingRating] = useState<{
+    average: number;
+    count: number;
+  }>({ average: 0, count: 0 });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+
   // Zoom
   const [zoom, setZoom] = useState(15);
 
@@ -376,6 +398,34 @@ export default function MapScreen() {
       const loc = await Location.getCurrentPositionAsync({});
       setUserLocation([loc.coords.longitude, loc.coords.latitude]);
     })();
+  }, []);
+
+  // ── Deep link: navigate to building ──
+  useEffect(() => {
+    const handleUrl = (event: { url: string }) => {
+      const parsed = Linking.parse(event.url);
+      // navigateu://building/{buildingId}
+      if (parsed.path?.startsWith("building/")) {
+        const buildingId = parsed.path.replace("building/", "");
+        const b = BUILDINGS.find((x) => x.id === buildingId);
+        if (b) {
+          setSelectedBuilding(b);
+          cameraRef.current?.setCamera({
+            centerCoordinate: b.coord,
+            zoomLevel: 17,
+            animationDuration: 800,
+            animationMode: "flyTo",
+          });
+        }
+      }
+    };
+    // Handle link that opened the app
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+    // Handle links while app is open
+    const sub = Linking.addEventListener("url", handleUrl);
+    return () => sub.remove();
   }, []);
 
   // ── Tracking ──
@@ -664,6 +714,83 @@ export default function MapScreen() {
       setFromCoord(userLocation);
     }
     setSelectedBuilding(null);
+  };
+
+  // ── Fetch reviews when building selected ──
+  useEffect(() => {
+    if (!selectedBuilding) {
+      setBuildingReviews([]);
+      setBuildingRating({ average: 0, count: 0 });
+      setShowReviewForm(false);
+      setShowAllReviews(false);
+      return;
+    }
+    (async () => {
+      try {
+        const [reviews, rating] = await Promise.all([
+          getBuildingReviews(selectedBuilding.id),
+          getBuildingAverageRating(selectedBuilding.id),
+        ]);
+        setBuildingReviews(reviews);
+        setBuildingRating(rating);
+      } catch (e) {
+        console.warn("Failed to load reviews", e);
+      }
+    })();
+  }, [selectedBuilding]);
+
+  // ── Submit review ──
+  const handleSubmitReview = async () => {
+    if (!selectedBuilding) return;
+    const user = getCurrentUser();
+    if (!user) {
+      Alert.alert("Sign in required", "Please sign in to leave a review.");
+      return;
+    }
+    if (!reviewComment.trim()) {
+      Alert.alert("Review", "Please write a comment.");
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      await addBuildingReview({
+        buildingId: selectedBuilding.id,
+        userId: user.uid,
+        userName: user.displayName || user.email || "Anonymous",
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      // Refresh
+      const [reviews, rating] = await Promise.all([
+        getBuildingReviews(selectedBuilding.id),
+        getBuildingAverageRating(selectedBuilding.id),
+      ]);
+      setBuildingReviews(reviews);
+      setBuildingRating(rating);
+      setReviewComment("");
+      setReviewRating(5);
+      setShowReviewForm(false);
+      Alert.alert("Thanks!", "Your review has been posted.");
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to submit review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // ── Share building link ──
+  const handleShareBuilding = async () => {
+    if (!selectedBuilding) return;
+    const deepLink = `navigateu://building/${selectedBuilding.id}`;
+    const message = `Check out ${selectedBuilding.name} on NavigateU!\n${deepLink}`;
+    try {
+      await Share.share({
+        message,
+        title: selectedBuilding.name,
+      });
+    } catch {
+      Alert.alert("Share", message);
+    }
   };
 
   // ── Zoom ──
@@ -1500,6 +1627,7 @@ export default function MapScreen() {
           {/* ═══ BUILDING CARD ═══ */}
           {selectedBuilding && !showDirections && (
             <View style={styles.card}>
+              {/* Header row */}
               <View style={styles.cardRow}>
                 <View
                   style={[
@@ -1518,11 +1646,33 @@ export default function MapScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardName}>{selectedBuilding.name}</Text>
                   <Text style={styles.cardDesc}>{selectedBuilding.desc}</Text>
+                  {/* Star rating summary */}
+                  <View style={styles.ratingRow}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Ionicons
+                        key={s}
+                        name={
+                          s <= Math.round(buildingRating.average)
+                            ? "star"
+                            : "star-outline"
+                        }
+                        size={14}
+                        color="#F59E0B"
+                      />
+                    ))}
+                    <Text style={styles.ratingText}>
+                      {buildingRating.count > 0
+                        ? `${buildingRating.average.toFixed(1)} (${buildingRating.count})`
+                        : "No reviews"}
+                    </Text>
+                  </View>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedBuilding(null)}>
                   <Ionicons name="close" size={22} color="#666" />
                 </TouchableOpacity>
               </View>
+
+              {/* Action buttons */}
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={[styles.cardBtn, { backgroundColor: "#4285F4" }]}
@@ -1531,13 +1681,113 @@ export default function MapScreen() {
                   <Ionicons name="navigate" size={16} color="#fff" />
                   <Text style={styles.cardBtnText}>Directions</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cardBtn}>
+                <TouchableOpacity
+                  style={styles.cardBtn}
+                  onPress={handleShareBuilding}
+                >
                   <Ionicons name="share-social" size={16} color="#4285F4" />
                   <Text style={[styles.cardBtnText, { color: "#4285F4" }]}>
                     Share
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cardBtn}
+                  onPress={() => setShowReviewForm((v) => !v)}
+                >
+                  <Ionicons
+                    name="chatbubble-ellipses"
+                    size={16}
+                    color="#4285F4"
+                  />
+                  <Text style={[styles.cardBtnText, { color: "#4285F4" }]}>
+                    Review
+                  </Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Review form */}
+              {showReviewForm && (
+                <View style={styles.reviewForm}>
+                  <Text style={styles.reviewFormTitle}>Write a Review</Text>
+                  <View style={styles.starPicker}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <TouchableOpacity
+                        key={s}
+                        onPress={() => setReviewRating(s)}
+                      >
+                        <Ionicons
+                          name={s <= reviewRating ? "star" : "star-outline"}
+                          size={28}
+                          color="#F59E0B"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={styles.reviewInput}
+                    placeholder="Share your experience..."
+                    placeholderTextColor="#999"
+                    multiline
+                    numberOfLines={3}
+                    value={reviewComment}
+                    onChangeText={setReviewComment}
+                  />
+                  <TouchableOpacity
+                    style={styles.reviewSubmitBtn}
+                    onPress={handleSubmitReview}
+                    disabled={isSubmittingReview}
+                  >
+                    {isSubmittingReview ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.reviewSubmitText}>Post Review</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Reviews list */}
+              {buildingReviews.length > 0 && (
+                <View style={styles.reviewsList}>
+                  <TouchableOpacity
+                    style={styles.reviewsToggle}
+                    onPress={() => setShowAllReviews((v) => !v)}
+                  >
+                    <Text style={styles.reviewsToggleText}>
+                      {showAllReviews
+                        ? "Hide Reviews"
+                        : `See ${buildingReviews.length} Reviews`}
+                    </Text>
+                    <Ionicons
+                      name={showAllReviews ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#4285F4"
+                    />
+                  </TouchableOpacity>
+                  {showAllReviews && (
+                    <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                      {buildingReviews.map((r) => (
+                        <View key={r.id} style={styles.reviewItem}>
+                          <View style={styles.reviewHeader}>
+                            <Text style={styles.reviewUser}>{r.userName}</Text>
+                            <View style={{ flexDirection: "row" }}>
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Ionicons
+                                  key={s}
+                                  name={s <= r.rating ? "star" : "star-outline"}
+                                  size={12}
+                                  color="#F59E0B"
+                                />
+                              ))}
+                            </View>
+                          </View>
+                          <Text style={styles.reviewComment}>{r.comment}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
@@ -2304,6 +2554,71 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cardBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
+
+  // Reviews
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 12,
+    marginTop: 4,
+    gap: 2,
+  },
+  ratingText: { fontSize: 12, color: "#666", marginLeft: 4 },
+  reviewForm: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+  },
+  reviewFormTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 8,
+  },
+  starPicker: { flexDirection: "row", gap: 6, marginBottom: 10 },
+  reviewInput: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 14,
+    color: "#333",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  reviewSubmitBtn: {
+    backgroundColor: "#4285F4",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  reviewSubmitText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  reviewsList: { marginTop: 10 },
+  reviewsToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 6,
+  },
+  reviewsToggleText: { fontSize: 13, fontWeight: "600", color: "#4285F4" },
+  reviewItem: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 6,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  reviewUser: { fontSize: 13, fontWeight: "600", color: "#333" },
+  reviewComment: { fontSize: 13, color: "#555", lineHeight: 18 },
 
   // Controls
   controls: { position: "absolute", right: 14, bottom: 120, gap: 8 },
