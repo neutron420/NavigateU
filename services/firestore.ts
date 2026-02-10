@@ -13,9 +13,6 @@ import {
     where,
 } from "firebase/firestore";
 
-// ══════════════════════════════════════════════════════════════════════════════
-// TYPES
-// ══════════════════════════════════════════════════════════════════════════════
 
 export interface UserProfile {
   uid: string;
@@ -52,9 +49,7 @@ export interface UserProfile {
   friendIds?: string[];
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// USER PROFILES (Firestore: users/{uid})
-// ══════════════════════════════════════════════════════════════════════════════
+
 
 const USERS = "users";
 
@@ -153,9 +148,6 @@ export async function removeFriend(
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SAVED PLACES (Firestore: users/{uid}/savedPlaces/{placeId})
-// ══════════════════════════════════════════════════════════════════════════════
 
 export interface SavedPlace {
   id: string;

@@ -8,12 +8,6 @@ import {
     type Unsubscribe
 } from "firebase/database";
 
-// ══════════════════════════════════════════════════════════════════════════════
-// LIVE LOCATION TRACKING (Realtime Database — low latency)
-// ══════════════════════════════════════════════════════════════════════════════
-// Structure:
-//   locations/users/{uid}     → { lat, lng, heading, speed, timestamp }
-//   locations/shuttles/{id}   → { lat, lng, heading, speed, route, timestamp }
 
 export interface LiveLocation {
   lat: number;
@@ -30,7 +24,6 @@ export interface ShuttleLocation extends LiveLocation {
   status: "running" | "stopped" | "out-of-service";
 }
 
-// ── User Location ────────────────────────────────────────────────────────────
 
 // Update my live location
 export async function updateMyLocation(
@@ -81,8 +74,6 @@ export function watchFriendsLocations(
 
   return unsubs;
 }
-
-// ── Shuttle Tracking ─────────────────────────────────────────────────────────
 
 // Update shuttle location (for drivers/admin)
 export async function updateShuttleLocation(

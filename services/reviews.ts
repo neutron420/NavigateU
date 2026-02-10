@@ -11,10 +11,6 @@ import {
     where,
 } from "firebase/firestore";
 
-// ══════════════════════════════════════════════════════════════════════════════
-// BUILDING REVIEWS (Firestore: reviews/{docId})
-// ══════════════════════════════════════════════════════════════════════════════
-
 export interface BuildingReview {
   id?: string;
   buildingId: string;
