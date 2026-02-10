@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: "NavigateU",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/images/Logo (2).png",
+  icon: "./assets/images/icon.png",
   scheme: "navigateu",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
@@ -15,10 +15,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
   },
   android: {
+    icon: "./assets/images/icon.png",
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
-      foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
+      backgroundColor: "#FFFFFF",
+      foregroundImage: "./assets/images/icon.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
