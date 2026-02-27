@@ -1,6 +1,9 @@
 import Constants from "expo-constants";
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import * as FirebaseAuth from "firebase/auth";
+import { type Auth } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 
@@ -17,10 +20,33 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Auth
-export const auth = getAuth(app);
+const { getAuth, initializeAuth } = FirebaseAuth;
+const getReactNativePersistence = (
+  FirebaseAuth as unknown as {
+    getReactNativePersistence?: (storage: typeof AsyncStorage) => any;
+  }
+).getReactNativePersistence;
+
+let authInstance: Auth;
+if (Platform.OS === "web") {
+  authInstance = getAuth(app);
+} else {
+  try {
+    authInstance = initializeAuth(
+      app,
+      getReactNativePersistence
+        ? { persistence: getReactNativePersistence(AsyncStorage) }
+        : undefined,
+    );
+  } catch {
+    // During fast refresh, Auth may already be initialized.
+    authInstance = getAuth(app);
+  }
+}
+export const auth = authInstance;
 
 // Firestore (user profiles, building data, settings)
 export const db = getFirestore(app);
