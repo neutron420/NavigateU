@@ -152,13 +152,12 @@ sequenceDiagram
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/home.png" width="200" alt="Home Screen"/>
-  <img src="docs/screenshots/navigation.png" width="200" alt="Navigation"/>
-  <img src="docs/screenshots/search.png" width="200" alt="Search"/>
-  <img src="docs/screenshots/profile.png" width="200" alt="Profile"/>
+  <img src="docs/screenshots/map-route.png" width="220" alt="Map Route Planning Screen"/>
+  <img src="docs/screenshots/navigation-dark.png" width="220" alt="Turn-by-Turn Navigation Screen"/>
+  <img src="docs/screenshots/ar-navigation.png" width="220" alt="AR Navigation Screen"/>
+  <img src="docs/screenshots/friends-screen.png" width="220" alt="Friends Screen"/>
+  <img src="docs/screenshots/profile-screen.png" width="220" alt="Profile Screen"/>
 </div>
-
-> 📸 Add your app screenshots in the `docs/screenshots/` folder
 
 ## Performance Metrics
 
